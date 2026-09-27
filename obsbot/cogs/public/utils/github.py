@@ -46,6 +46,26 @@ class GitHubHelper:
         elif project == 'obsproject/design' and branch != 'main':
             return embed_commits
 
+        if brief and len(commits) > 1:
+            head_hash = event_body['after']
+            prs = await self.get_with_retry(f'https://api.github.com/repos/{project}/commits/{head_hash}/pulls')
+            for pr in prs or []:
+                if (
+                    pr['merged_at']
+                    and pr['merge_commit_sha'] == head_hash
+                    and pr['base']['ref'] == branch
+                    and pr['base']['repo']['full_name'] == project
+                ):
+                    embed, _ = await self.get_pr_messages(
+                        dict(number=pr['number'], pull_request=pr, repository=event_body['repository'])
+                    )
+                    embed.title = f'Merged {embed.title}'[:256]
+                    embed.colour = Colour(self._commit_colour)
+                    embed.timestamp = dateutil.parser.parse(pr['merged_at'])
+                    embed.set_footer(text='Merged Pull Request')
+                    embed.add_field(name='Branch', value=branch, inline=True)
+                    return [(embed, head_hash)]
+
         if brief and len(commits) > self.config['commit_truncation_limit']:
             first_hash = commits[0]['id']
             last_hash = commits[-2]['id']
