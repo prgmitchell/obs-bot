@@ -3,6 +3,7 @@ import json
 import random
 
 from asyncio import TimeoutError
+from html import unescape
 from urllib.parse import parse_qs, urlparse, quote_plus as urlencode
 
 from aiohttp import ClientResponseError
@@ -10,6 +11,7 @@ from disnake import Message, Embed, Colour
 from disnake.enums import ButtonStyle
 from disnake.ext.commands import Cog, command, Context
 from disnake.ui.action_row import ActionRow
+from disnake.utils import escape_markdown
 
 from .utils.ratelimit import RateLimiter
 
@@ -190,6 +192,18 @@ class LogAnalyser(Cog):
                     f'*Log contains debug or verbose error messages (browser/ftl/directshow/etc), '
                     f'for a filtered version [click here]({clean_url})*\n'
                 )
+
+            specs = []
+            for value in log_analysis.get('system') or []:
+                label = 'OS'
+                if value.startswith(('CPU: ', 'GPU: ', 'RAM: ')):
+                    label, value = value.split(': ', 1)
+                elif value.startswith('Warning: '):
+                    value = value.replace('Warning: ', '⚠️ ', 1)
+                specs.append(f'**{label}:** {escape_markdown(unescape(value))}')
+
+            if specs:
+                embed.add_field(name='System', value='\n'.join(specs), inline=False)
 
             row = ActionRow()
             row.add_button(style=ButtonStyle.link, label='Solutions / Full Analysis', url=anal_url)
